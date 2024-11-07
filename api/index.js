@@ -1,40 +1,54 @@
+// Importar módulos necesarios
 const express = require('express');
-const bodyParser = require('body-parser');
-const fs = require('fs');
-const path = require('path');
+const multer = require('multer');
+
+// Inicializar Express y configurar Multer para almacenamiento en memoria
 const app = express();
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
-// Configuración y variables
-const port = process.env.PORT || 3000;
-const liveImagePath = path.join(__dirname, 'last-image.jpg');
+// Variable para almacenar el último frame recibido
+let latestFrame = null;
 
-// Configurar body-parser para recibir datos binarios en el punto de transmisión
-app.use(bodyParser.raw({ type: 'application/octet-stream', limit: '10mb' }));
-
-// 1. Verificación: Página simple para confirmar que el servidor está activo
+// Endpoint de prueba
 app.get('/', (req, res) => {
-  res.send('<h1>Servidor L Cam está funcionando</h1>');
+  res.send('Servidor L-Cam en funcionamiento');
 });
 
-// 2. Punto de acceso para transmisión en tiempo real desde la L Cam
-app.post('/live-stream', (req, res) => {
-  // Guardar los datos recibidos como la última imagen
-  fs.writeFileSync(liveImagePath, req.body); // Guardar la imagen en el servidor
-  console.log('Imagen de transmisión en vivo recibida');
-  res.status(200).send('Imagen recibida');
-});
+// Endpoint para recibir el stream de la ESP32-CAM
+app.post('/live-stream', upload.single('file'), (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      console.error('No se recibió un archivo o el archivo está vacío.');
+      return res.status(400).send('No se recibió un archivo.');
+    }
 
-// 3. Punto de acceso para obtener la transmisión en vivo
-app.get('/live-stream', (req, res) => {
-  // Verificar si existe una imagen de transmisión
-  if (fs.existsSync(liveImagePath)) {
-    res.sendFile(liveImagePath); // Enviar la imagen guardada a la app
-  } else {
-    res.status(404).send('No hay transmisión disponible');
+    // Guardar el frame recibido en la variable latestFrame
+    latestFrame = req.file.buffer;
+
+    console.log('Frame recibido correctamente.');
+    res.status(200).send('Frame recibido exitosamente.');
+  } catch (error) {
+    console.error('Error procesando el archivo:', error);
+    res.status(500).send('Error interno del servidor.');
   }
 });
 
-// Inicializar el servidor
+// Endpoint para obtener el último frame desde la app
+app.get('/last-image', (req, res) => {
+  if (!latestFrame) {
+    return res.status(404).send('No hay transmisión disponible.');
+  }
+
+  res.writeHead(200, {
+    'Content-Type': 'image/jpeg',
+    'Content-Length': latestFrame.length,
+  });
+  res.end(latestFrame);
+});
+
+// Configurar el puerto y escuchar
+const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log(`Servidor L Cam escuchando en el puerto ${port}`);
+  console.log(`Servidor escuchando en el puerto ${port}`);
 });
