@@ -1,0 +1,16 @@
+{
+  "name": "l-cam-api",
+  "version": "1.0.0",
+  "description": "API server for L Cam to receive and stream camera data",
+  "main": "./api/index.js",
+  "scripts": {
+    "start": "node ./api/index.js"
+  },
+  "keywords": ["L Cam", "camera", "security", "API", "Express"],
+  "author": "Lion in House Developments",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.21.1",
+    "multer": "^1.4.5-lts.1"
+  }
+}
